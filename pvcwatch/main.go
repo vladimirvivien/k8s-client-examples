@@ -76,12 +76,10 @@ func main() {
 			case watch.Added:
 				totalClaimedQuant.Add(quant)
 				log.Printf("PVC %s added, claim size %s\n", pvc.Name, quant.String())
-				log.Printf("\nAt %3.1f%% claim capcity\n",
-					float64(totalClaimedQuant.Value())/float64(maxClaimedQuant.Value())*100,
-				)
+
 				// is claim overage?
-				if totalClaimedQuant.Cmp(maxClaimedQuant) > 1 {
-					log.Printf("Claim overage reached: max %v got %v",
+				if totalClaimedQuant.Cmp(maxClaimedQuant) == 1 {
+					log.Printf("\nClaim overage reached: max %s at %s",
 						maxClaimedQuant.String(),
 						totalClaimedQuant.String(),
 					)
@@ -95,12 +93,24 @@ func main() {
 				quant := pvc.Spec.Resources.Requests[v1.ResourceStorage]
 				totalClaimedQuant.Sub(quant)
 				log.Printf("PVC %s removed, size %s\n", pvc.Name, quant.String())
-				log.Printf("\nAt %3.1f%% claim capcity\n",
-					float64(totalClaimedQuant.Value())/float64(maxClaimedQuant.Value())*100,
-				)
+
+				if totalClaimedQuant.Cmp(maxClaimedQuant) <= 0 {
+					log.Printf("Claim usage normal: max %s at %s",
+						maxClaimedQuant.String(),
+						totalClaimedQuant.String(),
+					)
+					// trigger action
+					log.Println("*** Taking action ***")
+				}
 			case watch.Error:
 				//log.Printf("watcher error encountered\n", pod.GetName())
 			}
+
+			log.Printf("\nAt %3.1f%% claim capcity (%s/%s)\n",
+				float64(totalClaimedQuant.Value())/float64(maxClaimedQuant.Value())*100,
+				totalClaimedQuant.String(),
+				maxClaimedQuant.String(),
+			)
 
 		}
 
