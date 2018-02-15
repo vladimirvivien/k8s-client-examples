@@ -17,10 +17,12 @@ import (
 
 func main() {
 	var ns, label, field, maxClaims string
+	kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 	flag.StringVar(&ns, "namespace", "", "namespace")
 	flag.StringVar(&label, "l", "", "Label selector")
 	flag.StringVar(&field, "f", "", "Field selector")
 	flag.StringVar(&maxClaims, "max-claims", "200Gi", "Maximum total claims to watch")
+	flag.StringVar(&kubeconfig, "kubeconfig", kubeconfig, "kubeconfig file")
 	flag.Parse()
 
 	var totalClaimedQuant resource.Quantity
@@ -28,7 +30,6 @@ func main() {
 
 	// bootstrap config
 	fmt.Println()
-	kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
 	fmt.Println("Using kubeconfig: ", kubeconfig)
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -59,61 +60,52 @@ func main() {
 	ch := watcher.ResultChan()
 
 	fmt.Printf("--- PVC Watch (max claims %v) ----\n", maxClaimedQuant.String())
-	for {
-		select {
-		case event, ok := <-ch:
-			if !ok {
-				log.Fatal("watcher channel closed")
+	for event := range ch {
+		pvc, ok := event.Object.(*v1.PersistentVolumeClaim)
+		if !ok {
+			log.Fatal("unexpected type")
+		}
+		quant := pvc.Spec.Resources.Requests[v1.ResourceStorage]
+
+		switch event.Type {
+		case watch.Added:
+			totalClaimedQuant.Add(quant)
+			log.Printf("PVC %s added, claim size %s\n", pvc.Name, quant.String())
+
+			// is claim overage?
+			if totalClaimedQuant.Cmp(maxClaimedQuant) == 1 {
+				log.Printf("\nClaim overage reached: max %s at %s",
+					maxClaimedQuant.String(),
+					totalClaimedQuant.String(),
+				)
+				// trigger action
+				log.Println("*** Taking action ***")
 			}
 
-			pvc, ok := event.Object.(*v1.PersistentVolumeClaim)
-			if !ok {
-				log.Fatal("unexpected type")
-			}
+		case watch.Modified:
+			//log.Printf("Pod %s modified\n", pod.GetName())
+		case watch.Deleted:
 			quant := pvc.Spec.Resources.Requests[v1.ResourceStorage]
+			totalClaimedQuant.Sub(quant)
+			log.Printf("PVC %s removed, size %s\n", pvc.Name, quant.String())
 
-			switch event.Type {
-			case watch.Added:
-				totalClaimedQuant.Add(quant)
-				log.Printf("PVC %s added, claim size %s\n", pvc.Name, quant.String())
-
-				// is claim overage?
-				if totalClaimedQuant.Cmp(maxClaimedQuant) == 1 {
-					log.Printf("\nClaim overage reached: max %s at %s",
-						maxClaimedQuant.String(),
-						totalClaimedQuant.String(),
-					)
-					// trigger action
-					log.Println("*** Taking action ***")
-				}
-
-			case watch.Modified:
-				//log.Printf("Pod %s modified\n", pod.GetName())
-			case watch.Deleted:
-				quant := pvc.Spec.Resources.Requests[v1.ResourceStorage]
-				totalClaimedQuant.Sub(quant)
-				log.Printf("PVC %s removed, size %s\n", pvc.Name, quant.String())
-
-				if totalClaimedQuant.Cmp(maxClaimedQuant) <= 0 {
-					log.Printf("Claim usage normal: max %s at %s",
-						maxClaimedQuant.String(),
-						totalClaimedQuant.String(),
-					)
-					// trigger action
-					log.Println("*** Taking action ***")
-				}
-			case watch.Error:
-				//log.Printf("watcher error encountered\n", pod.GetName())
+			if totalClaimedQuant.Cmp(maxClaimedQuant) <= 0 {
+				log.Printf("Claim usage normal: max %s at %s",
+					maxClaimedQuant.String(),
+					totalClaimedQuant.String(),
+				)
+				// trigger action
+				log.Println("*** Taking action ***")
 			}
-
-			log.Printf("\nAt %3.1f%% claim capcity (%s/%s)\n",
-				float64(totalClaimedQuant.Value())/float64(maxClaimedQuant.Value())*100,
-				totalClaimedQuant.String(),
-				maxClaimedQuant.String(),
-			)
-
+		case watch.Error:
+			//log.Printf("watcher error encountered\n", pod.GetName())
 		}
 
+		log.Printf("\nAt %3.1f%% claim capcity (%s/%s)\n",
+			float64(totalClaimedQuant.Value())/float64(maxClaimedQuant.Value())*100,
+			totalClaimedQuant.String(),
+			maxClaimedQuant.String(),
+		)
 	}
 }
 
