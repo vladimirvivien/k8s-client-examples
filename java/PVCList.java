@@ -4,8 +4,13 @@ import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.CoreV1Api;
 import io.kubernetes.client.models.V1PersistentVolumeClaim;
 import io.kubernetes.client.models.V1PersistentVolumeClaimList;
+import io.kubernetes.client.Pair;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class PVCList {
     public static void main(String[] args) throws IOException, ApiException{
@@ -13,12 +18,20 @@ public class PVCList {
         String apiServer = System.getenv("K8S_APISERVER");
         // namespace should default to default
         String namespace = System.getenv("K8S_NAMESPACE");
+        // bearer token
+        String bearerToken = System.getenv("K8S_SERVERTOKEN");
 
         ApiClient client = Configuration.getDefaultApiClient();
         if (apiServer == null) {
             apiServer = "https://localhost:443";
         }
-        
+
+        // set authorization headers
+        if (bearerToken != null){
+            client.addDefaultHeader("Authorization", "Bearer "+bearerToken);
+            client.setVerifyingSsl(false);
+        }
+        //client.setDebugging(true);
         client.setBasePath(apiServer);
         System.out.format("%nconnecting to API server %s %n%n", apiServer);
         System.out.println("----- PVCs ----");
