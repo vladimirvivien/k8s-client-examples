@@ -51,7 +51,7 @@ public class PVCWatch {
         PVCWatch.printPVCs(list);
 
         // parse watched events
-        System.out.format("%n----- PVC Watch (max total claims: %s) -----%n", maxClaims.toSuffixedString());
+        System.out.format("%n----- PVC Watch (max total claims: %s) -----", maxClaims.toSuffixedString());
         try {
             Watch<V1PersistentVolumeClaim> watch = Watch.createWatch(
                     client,
@@ -75,21 +75,21 @@ public class PVCWatch {
                         totalClaims = new Quantity(totalNum, Format.BINARY_SI);
 
                         System.out.format(
-                            "ADDED: PVC %s added, size %s", 
+                            "%nADDED: PVC %s added, size %s", 
                             pvc.getMetadata().getName(), claimSize
                         );
 
                         // claim size overage ?
                         if (totalClaims.getNumber().compareTo(maxClaims.getNumber()) >= 1) {
                                 System.out.format(
-                                    "WARNING: claim overage reached: max %s, at %s%n", 
-                                    maxClaims.toString(), totalClaims.toString()
+                                    "%nWARNING: claim overage reached: max %s, at %s", 
+                                    maxClaims.toSuffixedString(), totalClaims.toSuffixedString()
                                 );
-                                System.out.println("*** Trigger action ***");
+                                System.out.format("%n*** Trigger over capacity action ***");
                         }
                         break;
                     case "MODIFIED":
-                        System.out.format("MODIFIED: PVC %s added, size %s", pvc.getMetadata().getName(), claimSize);
+                        System.out.format("%nMODIFIED: PVC %s", pvc.getMetadata().getName());
                         break;
                     case "DELETED":
                          claimSize = pvc.getSpec().getResources().getRequests().get("storage");
@@ -98,22 +98,22 @@ public class PVCWatch {
                          totalClaims = new Quantity(totalNum, Format.BINARY_SI);
 
                         System.out.format(
-                            "DELETED: PVC %s removed, size %s", 
+                            "%nDELETED: PVC %s removed, size %s", 
                             pvc.getMetadata().getName(), claimSize
                         );
 
                         // size back to normal ?
                         if (totalClaims.getNumber().compareTo(maxClaims.getNumber()) <= 0) {
                                 System.out.format(
-                                    "INFO: claim usage normal: max %s, at %s%n", 
-                                    maxClaims.toString(), totalClaims.toString()
+                                    "%nINFO: claim usage normal: max %s, at %s", 
+                                    maxClaims.toSuffixedString(), totalClaims.toSuffixedString()
                                 );
                         }
                         break;
                 }
                 System.out.format(
-                    "%nINFO: Total PVC is at %3.1f%% capacity (%s/%s)%n", 
-                    (totalClaims.getNumber().divide(maxClaims.getNumber()).floatValue()) * 100,
+                    "%nINFO: Total PVC is at %4.1f%% capacity (%s/%s)", 
+                    (totalClaims.getNumber().floatValue()/maxClaims.getNumber().floatValue()) * 100,
                     totalClaims.toSuffixedString(), 
                     maxClaims.toSuffixedString()
                 );
