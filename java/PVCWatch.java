@@ -38,7 +38,7 @@ public class PVCWatch {
         String apiServer = client.getBasePath();      
         System.out.format("%nconnecting to API server %s %n%n", apiServer);
 
-        client.getHttpClient().setReadTimeout(300, TimeUnit.SECONDS);
+        client.getHttpClient().setReadTimeout(0, TimeUnit.SECONDS);
         CoreV1Api api = new CoreV1Api(client);
         V1PersistentVolumeClaimList list = null;
         try{
