@@ -25,6 +25,7 @@ func main() {
 	flag.StringVar(&kubeconfig, "kubeconfig", kubeconfig, "kubeconfig file")
 	flag.Parse()
 
+	// total resource quantities
 	var totalClaimedQuant resource.Quantity
 	maxClaimedQuant := resource.MustParse(maxClaims)
 
@@ -41,10 +42,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	api := clientset.CoreV1()
 
 	// initial list
 	listOptions := metav1.ListOptions{LabelSelector: label, FieldSelector: field}
-	pvcs, err := clientset.CoreV1().PersistentVolumeClaims(ns).List(listOptions)
+	pvcs, err := api.PersistentVolumeClaims(ns).List(listOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
