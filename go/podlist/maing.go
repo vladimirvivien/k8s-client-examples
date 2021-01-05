@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -33,8 +34,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{})
+	
+	pods, err := clientset.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Fatalln("failed to get pods:", err)
 	}

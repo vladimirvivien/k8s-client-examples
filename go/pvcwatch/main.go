@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -44,9 +45,12 @@ func main() {
 	}
 	api := clientset.CoreV1()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// initial list
 	listOptions := metav1.ListOptions{LabelSelector: label, FieldSelector: field}
-	pvcs, err := api.PersistentVolumeClaims(ns).List(listOptions)
+	pvcs, err := api.PersistentVolumeClaims(ns).List(ctx, listOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +59,7 @@ func main() {
 	fmt.Println()
 
 	// watch future changes to PVCs
-	watcher, err := clientset.CoreV1().PersistentVolumeClaims(ns).Watch(listOptions)
+	watcher, err := clientset.CoreV1().PersistentVolumeClaims(ns).Watch(ctx, listOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
